@@ -35,6 +35,7 @@ function loadFromStorage(): TrashPanel[] {
           return {
             id: typeof t.id === "string" ? t.id : crypto.randomUUID(),
             title: typeof t.title === "string" ? t.title : "",
+            categoryId: typeof t.categoryId === "string" ? t.categoryId : "",
             createdAt: typeof t.createdAt === "string" ? t.createdAt : new Date().toISOString(),
             doneAt: typeof t.doneAt === "string" ? t.doneAt : new Date().toISOString(),
             categoryName: typeof t.categoryName === "string" ? t.categoryName : "",
