@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { readState, writeState, type AppState, type Category } from "@/lib/db";
 
