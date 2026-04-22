@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find C:UsersntoyaDesktopcreativeweb -type f -name *.js -path */src/* -not -path */node_modules/*)",
+      "Bash(grep -r \"exec\\\\|spawn\\\\|child_process\" C:UsersntoyaDesktopcreativeweb --include=*.js --include=*.ts --include=*.jsx --include=*.tsx --exclude-dir=node_modules --exclude-dir=.next)",
+      "Bash(ls -la \"C:\\\\Users\\\\ntoya\\\\Desktop\\\\creative\\\\web\\\\paulsvee ai\\\\app\\\\api\"\" 2>/dev/null | grep -E \".ts)",
+      "Bash(.js \")",
+      "Bash(grep -E \"\\\\.\\(ts|js\\)$\")",
+      "Bash(curl:*)"
+    ]
+  }
+}
