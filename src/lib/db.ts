@@ -79,6 +79,49 @@ if (!appStateColumns.has("sidebar_width")) {
   db.exec("ALTER TABLE app_state ADD COLUMN sidebar_width INTEGER NOT NULL DEFAULT 240");
 }
 
+
+function seedIfEmpty() {
+  const existing = db.prepare("SELECT mode FROM app_state WHERE mode = 'main'").get();
+  if (existing) return;
+
+  const now = Date.now();
+  const uuid = () => Math.random().toString(36).slice(2) + '-' + Date.now().toString(36);
+
+  const cats = [
+    { id: uuid(), name: "Work",     createdAt: now },
+    { id: uuid(), name: "Health",   createdAt: now + 1 },
+    { id: uuid(), name: "Learning", createdAt: now + 2 },
+    { id: uuid(), name: "Personal", createdAt: now + 3 },
+    { id: uuid(), name: "Projects", createdAt: now + 4 },
+  ];
+
+  const insertCat = db.prepare("INSERT INTO categories (id, mode, name, created_at) VALUES (?, 'main', ?, ?)");
+  for (const c of cats) insertCat.run(c.id, c.name, c.createdAt);
+
+  db.prepare(`INSERT INTO app_state (mode, app_title, motto, active_category_id, sidebar_width, version) VALUES ('main', 'Todo', 'Get things done.', 'all', 240, 4)`).run();
+
+  const panels = [
+    { title: "Work",     color: "#4a90d9", catIdx: 0, items: ["Review Q2 progress report", "Reply to client emails", "Update project timeline", "Prepare presentation slides", "Schedule team sync meeting"] },
+    { title: "Health",   color: "#00E676", catIdx: 1, items: ["30-min morning run", "Drink 8 glasses of water daily", "Meal prep for the week", "Sleep by 11pm", "10-min evening stretch"] },
+    { title: "Learning", color: "#00BCD4", catIdx: 2, items: ["Read Clean Code chapter 5", "Watch TypeScript advanced tutorial", "Practice 1 LeetCode problem", "Review system design patterns"] },
+    { title: "Personal", color: "#FFD180", catIdx: 3, items: ["Call family", "Declutter workspace", "Read for 20 minutes", "Write in journal"] },
+    { title: "Projects", color: "#B388FF", catIdx: 4, items: ["Deploy landing page updates", "Fix navigation bug", "Write unit tests for auth module", "Review open pull requests", "Update API documentation"] },
+  ];
+
+  const insertPanel = db.prepare(`INSERT INTO panels (id, mode, title, color, created_at, category_assigned_at, is_special, sort_order) VALUES (?, 'main', ?, ?, ?, ?, 0, ?)`);
+  const insertPanelCat = db.prepare("INSERT INTO panel_categories (panel_id, category_id) VALUES (?, ?)");
+  const insertItem = db.prepare(`INSERT INTO todo_items (id, panel_id, text, done, created_at, sort_order) VALUES (?, ?, ?, 0, ?, ?)`);
+
+  panels.forEach((p, pi) => {
+    const panelId = uuid();
+    insertPanel.run(panelId, p.title, p.color, now + pi * 100, now + pi * 100, pi);
+    insertPanelCat.run(panelId, cats[p.catIdx].id);
+    p.items.forEach((text, ii) => insertItem.run(uuid(), panelId, text, now + pi * 100 + ii, ii));
+  });
+}
+
+seedIfEmpty();
+
 export default db;
 
 // ─── 타입 ────────────────────────────────────────────────────────────────────
