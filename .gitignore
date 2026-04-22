@@ -37,3 +37,4 @@ yarn-error.log*
 *.pem
 .vercel
 backup/
+*복사본*
