@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from "next/server";
-import { readCategories, readPanels } from "@/lib/db";
+import { ensurePublicSeed, readCategories, readPanels } from "@/lib/db";
 
 const CORS_ORIGIN = "http://localhost:3004";
 
@@ -18,6 +18,7 @@ export async function OPTIONS() {
 
 export async function GET() {
   try {
+    ensurePublicSeed("main");
     const categories = readCategories("main");
     const importantName = "\uC911\uC694";
     const importantCat = categories.find((category) => category.name === importantName);

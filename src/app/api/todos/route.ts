@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
-import { readState, writeState, type AppState, type Category } from "@/lib/db";
+import { ensurePublicSeed, readState, writeState, type AppState, type Category } from "@/lib/db";
 
 // ─── CORS ──────────────────────────────────────────────────────────────────────
 const CORS_ORIGIN = "http://localhost:3004";
@@ -21,6 +21,7 @@ export async function OPTIONS() {
 
 export async function GET() {
   try {
+    ensurePublicSeed("main");
     const { state, categories } = readState("main");
     return NextResponse.json(
       { state, categories_main: categories },

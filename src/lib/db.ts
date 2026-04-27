@@ -81,6 +81,81 @@ if (!appStateColumns.has("sidebar_width")) {
   db.exec("ALTER TABLE app_state ADD COLUMN sidebar_width INTEGER NOT NULL DEFAULT 240");
 }
 
+const PUBLIC_MAIN_SEED = {
+  appTitle: "할 일",
+  motto: "함께 쓰는 공용 체크리스트",
+  categories: ["오늘 할 일", "콘텐츠", "사이트 관리", "공부", "정리와 회복"],
+  panels: [
+    { title: "오늘", color: "#4a90d9", catIdx: 0, items: ["오늘 가장 중요한 일 세 가지 확인", "급한 메시지 먼저 정리", "일정과 마감 확인", "끝낸 일 체크", "내일 첫 작업 하나 정하기"] },
+    { title: "콘텐츠 큐", color: "#B388FF", catIdx: 1, items: ["짧은 메모 초안 쓰기", "참고할 문장이나 링크 모으기", "제목과 요약 다듬기", "모바일에서 읽기 편한지 확인", "오래된 초안 보관하기"] },
+    { title: "사이트 점검", color: "#00BCD4", catIdx: 2, items: ["주요 페이지 열어 레이아웃 확인", "버튼과 링크 작동 확인", "배포 상태 확인", "콘솔 에러 확인", "다음 개선점 하나 기록"] },
+    { title: "공부 루틴", color: "#00E676", catIdx: 3, items: ["집중해서 한 단락 읽기", "배운 점 세 가지 적기", "나중에 볼 질문 하나 남기기", "어제 메모 다시 보기", "아이디어 하나를 실행 항목으로 바꾸기"] },
+    { title: "리셋", color: "#FFD180", catIdx: 4, items: ["물 마시기", "일어나서 몸 풀기", "책상 위 정리", "잠깐 걷기", "안 쓰는 탭 닫기"] },
+  ],
+};
+
+function uuid() {
+  return Math.random().toString(36).slice(2) + '-' + Date.now().toString(36);
+}
+
+function resetPublicMainSeed() {
+  const now = Date.now();
+  const cats = PUBLIC_MAIN_SEED.categories.map((name, index) => ({
+    id: uuid(),
+    name,
+    createdAt: now + index,
+  }));
+
+  const insertCat = db.prepare("INSERT INTO categories (id, mode, name, created_at) VALUES (?, 'main', ?, ?)");
+  const insertPanel = db.prepare(`INSERT INTO panels (id, mode, title, color, created_at, category_assigned_at, is_special, sort_order) VALUES (?, 'main', ?, ?, ?, ?, 0, ?)`);
+  const insertPanelCat = db.prepare("INSERT INTO panel_categories (panel_id, category_id) VALUES (?, ?)");
+  const insertItem = db.prepare(`INSERT INTO todo_items (id, panel_id, text, done, created_at, sort_order) VALUES (?, ?, ?, 0, ?, ?)`);
+
+  db.transaction(() => {
+    db.prepare("DELETE FROM todo_items WHERE panel_id IN (SELECT id FROM panels WHERE mode = 'main')").run();
+    db.prepare("DELETE FROM panel_categories WHERE panel_id IN (SELECT id FROM panels WHERE mode = 'main')").run();
+    db.prepare("DELETE FROM panels WHERE mode = 'main'").run();
+    db.prepare("DELETE FROM categories WHERE mode = 'main'").run();
+    db.prepare("DELETE FROM app_state WHERE mode = 'main'").run();
+
+    for (const c of cats) insertCat.run(c.id, c.name, c.createdAt);
+
+    db.prepare(`INSERT INTO app_state (mode, app_title, motto, active_category_id, sidebar_width, version) VALUES ('main', ?, ?, 'all', 240, 4)`)
+      .run(PUBLIC_MAIN_SEED.appTitle, PUBLIC_MAIN_SEED.motto);
+
+    PUBLIC_MAIN_SEED.panels.forEach((p, pi) => {
+      const panelId = uuid();
+      insertPanel.run(panelId, p.title, p.color, now + pi * 100, now + pi * 100, pi);
+      insertPanelCat.run(panelId, cats[p.catIdx].id);
+      p.items.forEach((text, ii) => insertItem.run(uuid(), panelId, text, now + pi * 100 + ii, ii));
+    });
+  })();
+}
+
+function isPublicMainSeedIntact(): boolean {
+  const { state, categories } = readState("main");
+  if (!state || state.appTitle !== PUBLIC_MAIN_SEED.appTitle || state.motto !== PUBLIC_MAIN_SEED.motto) {
+    return false;
+  }
+  if (categories.map((category) => category.name).join("|") !== PUBLIC_MAIN_SEED.categories.join("|")) {
+    return false;
+  }
+  if (state.panels.length !== PUBLIC_MAIN_SEED.panels.length) {
+    return false;
+  }
+
+  return PUBLIC_MAIN_SEED.panels.every((expectedPanel, index) => {
+    const panel = state.panels[index];
+    return panel?.title === expectedPanel.title &&
+      panel.items.map((item) => item.text).join("|") === expectedPanel.items.join("|");
+  });
+}
+
+export function ensurePublicSeed(mode: "main" | "dream") {
+  if (process.env.VERCEL !== "1" || mode !== "main") return;
+  if (!isPublicMainSeedIntact()) resetPublicMainSeed();
+}
+
 
 function seedIfEmpty() {
   const existing = db.prepare("SELECT app_title, motto FROM app_state WHERE mode = 'main'").get() as
@@ -92,51 +167,7 @@ function seedIfEmpty() {
     existing?.motto === "Common work queue.";
 
   if (existing && !shouldRefreshPublicSeed) return;
-
-  const now = Date.now();
-  const uuid = () => Math.random().toString(36).slice(2) + '-' + Date.now().toString(36);
-
-  const cats = [
-    { id: uuid(), name: "오늘 할 일", createdAt: now },
-    { id: uuid(), name: "콘텐츠", createdAt: now + 1 },
-    { id: uuid(), name: "사이트 관리", createdAt: now + 2 },
-    { id: uuid(), name: "공부", createdAt: now + 3 },
-    { id: uuid(), name: "정리와 회복", createdAt: now + 4 },
-  ];
-
-  if (shouldRefreshPublicSeed) {
-    db.transaction(() => {
-      db.prepare("DELETE FROM todo_items WHERE panel_id IN (SELECT id FROM panels WHERE mode = 'main')").run();
-      db.prepare("DELETE FROM panel_categories WHERE panel_id IN (SELECT id FROM panels WHERE mode = 'main')").run();
-      db.prepare("DELETE FROM panels WHERE mode = 'main'").run();
-      db.prepare("DELETE FROM categories WHERE mode = 'main'").run();
-      db.prepare("DELETE FROM app_state WHERE mode = 'main'").run();
-    })();
-  }
-
-  const insertCat = db.prepare("INSERT INTO categories (id, mode, name, created_at) VALUES (?, 'main', ?, ?)");
-  for (const c of cats) insertCat.run(c.id, c.name, c.createdAt);
-
-  db.prepare(`INSERT INTO app_state (mode, app_title, motto, active_category_id, sidebar_width, version) VALUES ('main', '할 일', '함께 쓰는 공용 체크리스트', 'all', 240, 4)`).run();
-
-  const panels = [
-    { title: "오늘", color: "#4a90d9", catIdx: 0, items: ["오늘 가장 중요한 일 세 가지 확인", "급한 메시지 먼저 정리", "일정과 마감 확인", "끝낸 일 체크", "내일 첫 작업 하나 정하기"] },
-    { title: "콘텐츠 큐", color: "#B388FF", catIdx: 1, items: ["짧은 메모 초안 쓰기", "참고할 문장이나 링크 모으기", "제목과 요약 다듬기", "모바일에서 읽기 편한지 확인", "오래된 초안 보관하기"] },
-    { title: "사이트 점검", color: "#00BCD4", catIdx: 2, items: ["주요 페이지 열어 레이아웃 확인", "버튼과 링크 작동 확인", "배포 상태 확인", "콘솔 에러 확인", "다음 개선점 하나 기록"] },
-    { title: "공부 루틴", color: "#00E676", catIdx: 3, items: ["집중해서 한 단락 읽기", "배운 점 세 가지 적기", "나중에 볼 질문 하나 남기기", "어제 메모 다시 보기", "아이디어 하나를 실행 항목으로 바꾸기"] },
-    { title: "리셋", color: "#FFD180", catIdx: 4, items: ["물 마시기", "일어나서 몸 풀기", "책상 위 정리", "잠깐 걷기", "안 쓰는 탭 닫기"] },
-  ];
-
-  const insertPanel = db.prepare(`INSERT INTO panels (id, mode, title, color, created_at, category_assigned_at, is_special, sort_order) VALUES (?, 'main', ?, ?, ?, ?, 0, ?)`);
-  const insertPanelCat = db.prepare("INSERT INTO panel_categories (panel_id, category_id) VALUES (?, ?)");
-  const insertItem = db.prepare(`INSERT INTO todo_items (id, panel_id, text, done, created_at, sort_order) VALUES (?, ?, ?, 0, ?, ?)`);
-
-  panels.forEach((p, pi) => {
-    const panelId = uuid();
-    insertPanel.run(panelId, p.title, p.color, now + pi * 100, now + pi * 100, pi);
-    insertPanelCat.run(panelId, cats[p.catIdx].id);
-    p.items.forEach((text, ii) => insertItem.run(uuid(), panelId, text, now + pi * 100 + ii, ii));
-  });
+  resetPublicMainSeed();
 }
 
 seedIfEmpty();
