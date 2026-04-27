@@ -2,7 +2,9 @@ import Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
 
-const DATA_DIR = path.join(process.cwd(), "data");
+const DATA_DIR = process.env.VERCEL === "1"
+  ? path.join("/tmp", "todo-carousel")
+  : path.join(process.cwd(), "data");
 const DB_PATH  = path.join(DATA_DIR, "todo-carousel.db");
 
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -88,24 +90,24 @@ function seedIfEmpty() {
   const uuid = () => Math.random().toString(36).slice(2) + '-' + Date.now().toString(36);
 
   const cats = [
-    { id: uuid(), name: "Work",     createdAt: now },
-    { id: uuid(), name: "Health",   createdAt: now + 1 },
-    { id: uuid(), name: "Learning", createdAt: now + 2 },
-    { id: uuid(), name: "Personal", createdAt: now + 3 },
-    { id: uuid(), name: "Projects", createdAt: now + 4 },
+    { id: uuid(), name: "Daily Ops", createdAt: now },
+    { id: uuid(), name: "Content", createdAt: now + 1 },
+    { id: uuid(), name: "Site Care", createdAt: now + 2 },
+    { id: uuid(), name: "Learning", createdAt: now + 3 },
+    { id: uuid(), name: "Wellbeing", createdAt: now + 4 },
   ];
 
   const insertCat = db.prepare("INSERT INTO categories (id, mode, name, created_at) VALUES (?, 'main', ?, ?)");
   for (const c of cats) insertCat.run(c.id, c.name, c.createdAt);
 
-  db.prepare(`INSERT INTO app_state (mode, app_title, motto, active_category_id, sidebar_width, version) VALUES ('main', 'Todo', 'Get things done.', 'all', 240, 4)`).run();
+  db.prepare(`INSERT INTO app_state (mode, app_title, motto, active_category_id, sidebar_width, version) VALUES ('main', 'To do', 'Common work queue.', 'all', 240, 4)`).run();
 
   const panels = [
-    { title: "Work",     color: "#4a90d9", catIdx: 0, items: ["Review Q2 progress report", "Reply to client emails", "Update project timeline", "Prepare presentation slides", "Schedule team sync meeting"] },
-    { title: "Health",   color: "#00E676", catIdx: 1, items: ["30-min morning run", "Drink 8 glasses of water daily", "Meal prep for the week", "Sleep by 11pm", "10-min evening stretch"] },
-    { title: "Learning", color: "#00BCD4", catIdx: 2, items: ["Read Clean Code chapter 5", "Watch TypeScript advanced tutorial", "Practice 1 LeetCode problem", "Review system design patterns"] },
-    { title: "Personal", color: "#FFD180", catIdx: 3, items: ["Call family", "Declutter workspace", "Read for 20 minutes", "Write in journal"] },
-    { title: "Projects", color: "#B388FF", catIdx: 4, items: ["Deploy landing page updates", "Fix navigation bug", "Write unit tests for auth module", "Review open pull requests", "Update API documentation"] },
+    { title: "Today", color: "#4a90d9", catIdx: 0, items: ["Review today's top three priorities", "Clear urgent messages", "Check calendar and deadlines", "Update completed tasks", "Plan tomorrow's first task"] },
+    { title: "Content Queue", color: "#B388FF", catIdx: 1, items: ["Draft one short memo", "Collect useful quotes or references", "Polish title and summary", "Check readability on mobile", "Archive stale drafts"] },
+    { title: "Website Care", color: "#00BCD4", catIdx: 2, items: ["Open main pages and check layout", "Confirm forms and links still work", "Review deployment status", "Check console for visible errors", "Note one improvement for next pass"] },
+    { title: "Study Sprint", color: "#00E676", catIdx: 3, items: ["Read one focused section", "Write three takeaways", "Save one question for later", "Review yesterday's note", "Turn one idea into an action"] },
+    { title: "Reset", color: "#FFD180", catIdx: 4, items: ["Drink water", "Stand and stretch", "Clean the desk surface", "Take a short walk", "Close unused tabs"] },
   ];
 
   const insertPanel = db.prepare(`INSERT INTO panels (id, mode, title, color, created_at, category_assigned_at, is_special, sort_order) VALUES (?, 'main', ?, ?, ?, ?, 0, ?)`);
