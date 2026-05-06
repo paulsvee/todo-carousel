@@ -6,7 +6,7 @@ const geistSans = Inter({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = JetBrains_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "To do",
+  title: "폴스비 To do",
   description: "Paulsvee To do v5",
 };
 
